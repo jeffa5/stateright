@@ -170,7 +170,7 @@ where A: Actor,
             let duration =
                 if range.start < range.end {
                     use rand::Rng;
-                    rand::thread_rng().gen_range(range.start, range.end)
+                    rand::thread_rng().gen_range(range.start..range.end)
                 } else {
                     range.start
                 };
