@@ -297,7 +297,7 @@ pub trait Checker<M: Model> {
     fn report<R>(self, reporter: &mut R) -> Self
     where
         M::Action: Debug,
-        M::State: Debug,
+        M::State: Debug + Hash,
         Self: Sized,
         R: Reporter<M>,
     {
