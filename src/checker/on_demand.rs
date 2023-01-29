@@ -109,7 +109,9 @@ where
             let (controlflow_sender, controlflow_receiver) = std::sync::mpsc::channel();
             controlflow_channels.push(controlflow_sender);
 
-            handles.push(std::thread::spawn(move || {
+            handles.push(std::thread::Builder::new()
+                .name(format!("checker-{}", t))
+                .spawn(move || {
                 log::debug!("{}: Thread started.", t);
                 let mut pending = VecDeque::new();
                 let mut targetted_pending = VecDeque::new();
@@ -258,7 +260,7 @@ where
                         job_market.wait_count += 1;
                     }
                 }
-            }));
+            }).expect("Failed to spawn a thread"));
         }
 
         // spawn a thread to forward the fingerprints to check
