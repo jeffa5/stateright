@@ -303,7 +303,7 @@ pub trait Checker<M: Model> {
     fn join_and_report<R>(mut self, reporter: &mut R) -> Self
     where
         M::Action: Debug,
-        M::State: Debug,
+        M::State: Debug + Hash,
         Self: Sized + Send+Sync,
         R: Reporter<M> + Send,
     {
