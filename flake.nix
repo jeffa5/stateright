@@ -32,6 +32,7 @@
           packages = [
             (rust.override {
               extensions = ["rust-src" "rustfmt"];
+              targets = ["wasm32-unknown-unknown"];
             })
           ];
         };
