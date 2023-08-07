@@ -2,6 +2,7 @@
 
 mod bfs;
 mod dfs;
+#[cfg(feature = "explorer")]
 mod explorer;
 mod on_demand;
 mod path;
@@ -136,6 +137,7 @@ impl<M: Model> CheckerBuilder<M> {
     ///    path of fingerprints and returns available actions with resulting
     ///    states and fingerprints.
     /// - `GET /.states/.../{invalid-fingerprint}` returns 404.
+    #[cfg(feature = "explorer")]
     pub fn serve(self, addresses: impl std::net::ToSocketAddrs) -> std::sync::Arc<impl Checker<M>>
     where
         M: 'static + Model + Send + Sync,
