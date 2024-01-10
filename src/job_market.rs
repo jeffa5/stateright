@@ -1,10 +1,5 @@
 use parking_lot::{Condvar, Mutex};
-use std::{
-    collections::VecDeque,
-    sync::Arc,
-    thread::sleep,
-    time::{Duration, SystemTime},
-};
+use std::{collections::VecDeque, sync::Arc, thread::sleep, time::Duration, time::SystemTime};
 
 /// A market for synchronising the sharing of jobs.
 ///
