@@ -13,7 +13,7 @@ mod visitor;
 
 use crate::has_discoveries::HasDiscoveries;
 use crate::report::{ReportData, ReportDiscovery, Reporter};
-use crate::{Expectation, Fingerprint, Model};
+use crate::{Expectation, Fingerprint, Model, Property};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
@@ -461,6 +461,27 @@ pub trait Checker<M: Model> {
             }
             Expectation::Sometimes => DiscoveryClassification::Example,
         }
+    }
+
+    /// A helper that checks examples exist for all `sometimes` properties and no counterexamples
+    /// exist for any `always`/`eventually` properties.
+    fn check_properties(&self) -> Vec<(Property<M>, bool)>
+    where
+        M::Action: Debug,
+        M::State: Debug,
+    {
+        self.model()
+            .properties()
+            .into_iter()
+            .map(|p| {
+                let success = match p.expectation {
+                    Expectation::Always => self.discovery(p.name).is_none(),
+                    Expectation::Eventually => self.discovery(p.name).is_none(),
+                    Expectation::Sometimes => self.discovery(p.name).is_some(),
+                };
+                (p, success)
+            })
+            .collect()
     }
 
     /// A helper that verifies examples exist for all `sometimes` properties and no counterexamples
