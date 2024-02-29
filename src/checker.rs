@@ -429,7 +429,7 @@ pub trait Checker<M: Model> {
                 done: false,
             });
             let delay = reporter.delay();
-            std::thread::sleep(delay - loop_start.elapsed());
+            std::thread::sleep(delay.saturating_sub(loop_start.elapsed()));
         }
         reporter.report_checking(ReportData {
             total_states: self.state_count(),
