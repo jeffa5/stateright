@@ -41,8 +41,8 @@ pub trait Reporter<M: Model> {
     /// Report the discoveries at the end of the checking run.
     fn report_discoveries(&mut self, discoveries: BTreeMap<&'static str, ReportDiscovery<M>>)
     where
-        M::Action: Debug,
-        M::State: Debug + Hash;
+        M::Action: Debug + Clone,
+        M::State: Debug + Hash + Clone;
 
     fn delay(&self) -> std::time::Duration {
         std::time::Duration::from_millis(1_000)

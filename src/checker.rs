@@ -351,8 +351,8 @@ pub trait Checker<M: Model> {
     /// the interval used for the reporting.
     fn join_and_report<R>(mut self, reporter: &mut R) -> Self
     where
-        M::Action: Debug,
-        M::State: Debug + Hash,
+        M::Action: Debug + Clone,
+        M::State: Debug + Hash + Clone,
         Self: Sized + Send + Sync,
         R: Reporter<M> + Send,
     {
@@ -412,8 +412,8 @@ pub trait Checker<M: Model> {
     /// Periodically emits a status message.
     fn report<R>(self, reporter: &mut R) -> Self
     where
-        M::Action: Debug,
-        M::State: Debug + Hash,
+        M::Action: Debug + Clone,
+        M::State: Debug + Hash + Clone,
         Self: Sized,
         R: Reporter<M>,
     {
