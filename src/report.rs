@@ -7,6 +7,7 @@ use std::time::Duration;
 use crate::{DiscoveryClassification, Model, Path};
 
 /// The data sent during a report event.
+#[derive(Clone)]
 pub struct ReportData {
     /// The total number of states.
     pub total_states: usize,
