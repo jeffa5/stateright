@@ -22,7 +22,6 @@ pub struct ReportData {
 }
 
 /// A discovery found during the checking.
-#[derive(Clone)]
 pub struct ReportDiscovery<M>
 where
     M: Model,
@@ -31,6 +30,19 @@ where
     pub path: Path<M::State, M::Action>,
     /// The classification of the path.
     pub classification: DiscoveryClassification,
+}
+
+impl<M: Model> Clone for ReportDiscovery<M>
+where
+    M::Action: Clone,
+    M::State: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            path: self.path.clone(),
+            classification: self.classification.clone(),
+        }
+    }
 }
 
 /// A reporter for progress during the model checking.
