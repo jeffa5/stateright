@@ -22,6 +22,7 @@ pub struct ReportData {
 }
 
 /// A discovery found during the checking.
+#[derive(Clone)]
 pub struct ReportDiscovery<M>
 where
     M: Model,

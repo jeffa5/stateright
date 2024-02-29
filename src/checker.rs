@@ -36,6 +36,7 @@ pub(crate) enum ControlFlow {
 }
 
 /// The classification of a property discovery.
+#[derive(Clone)]
 pub enum DiscoveryClassification {
     /// An example has been found.
     Example,
