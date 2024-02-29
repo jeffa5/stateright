@@ -420,6 +420,7 @@ pub trait Checker<M: Model> {
         // Start with the checking status.
         let method_start = Instant::now();
         while !self.is_done() {
+            let loop_start = Instant::now();
             reporter.report_checking(ReportData {
                 total_states: self.state_count(),
                 unique_states: self.unique_state_count(),
@@ -428,7 +429,7 @@ pub trait Checker<M: Model> {
                 done: false,
             });
             let delay = reporter.delay();
-            std::thread::sleep(delay);
+            std::thread::sleep(delay - loop_start.elapsed());
         }
         reporter.report_checking(ReportData {
             total_states: self.state_count(),
