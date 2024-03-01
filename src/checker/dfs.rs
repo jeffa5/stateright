@@ -43,6 +43,7 @@ where
         let target_max_depth = options.target_max_depth;
         let thread_count = options.thread_count;
         let visitor = Arc::new(options.visitor);
+        let terminal_visitor = Arc::new(options.terminal_visitor);
         let finish_when = Arc::new(options.finish_when);
         let properties = Arc::new(model.properties());
         let property_count = properties.len();
@@ -95,6 +96,7 @@ where
         for t in 0..thread_count {
             let model = Arc::clone(&model);
             let visitor = Arc::clone(&visitor);
+            let terminal_visitor = Arc::clone(&terminal_visitor);
             let finish_when = Arc::clone(&finish_when);
             let properties = Arc::clone(&properties);
             let mut job_broker = job_broker.clone();
@@ -134,6 +136,7 @@ where
                                 &properties,
                                 &discoveries,
                                 &visitor,
+                                &terminal_visitor,
                                 1500,
                                 target_max_depth,
                                 &max_depth,
@@ -192,6 +195,7 @@ where
         properties: &[Property<M>],
         discoveries: &DashMap<&'static str, Vec<Fingerprint>>,
         visitor: &Option<Box<dyn CheckerVisitor<M> + Send + Sync>>,
+        terminal_visitor: &Option<Box<dyn CheckerVisitor<M> + Send + Sync>>,
         mut max_count: usize,
         target_max_depth: Option<NonZeroUsize>,
         global_max_depth: &AtomicUsize,
@@ -357,6 +361,12 @@ where
                         // Races other threads, but that's fine.
                         discoveries.insert(property.name, fingerprints.clone());
                     }
+                }
+                if let Some(visitor) = terminal_visitor {
+                    visitor.visit(
+                        model,
+                        Path::from_fingerprints(model, VecDeque::from(fingerprints.clone())),
+                    );
                 }
             }
         }

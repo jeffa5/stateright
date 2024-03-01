@@ -105,6 +105,7 @@ where
         let target_state_count = options.target_state_count;
         let target_max_depth = options.target_max_depth;
         let visitor = Arc::new(options.visitor);
+        let terminal_visitor = Arc::new(options.terminal_visitor);
         let finish_when = Arc::new(options.finish_when);
         let properties = Arc::new(model.properties());
 
@@ -138,6 +139,7 @@ where
         for t in 0..options.thread_count {
             let model = Arc::clone(&model);
             let visitor = Arc::clone(&visitor);
+            let terminal_visitor = Arc::clone(&terminal_visitor);
             let finish_when = Arc::clone(&finish_when);
             let properties = Arc::clone(&properties);
             let state_count = Arc::clone(&state_count);
@@ -168,6 +170,7 @@ where
                                 &properties,
                                 &discoveries,
                                 &visitor,
+                                &terminal_visitor,
                                 target_max_depth,
                                 &max_depth,
                                 symmetry,
@@ -220,6 +223,7 @@ where
         properties: &[Property<M>],
         discoveries: &DashMap<&'static str, Vec<Fingerprint>>,
         visitor: &Option<Box<dyn CheckerVisitor<M> + Send + Sync>>,
+        terminal_visitor: &Option<Box<dyn CheckerVisitor<M> + Send + Sync>>,
         target_max_depth: Option<NonZeroUsize>,
         global_max_depth: &AtomicUsize,
         symmetry: Option<fn(&M::State) -> M::State>,
@@ -394,6 +398,12 @@ where
                 // Races other threads, but that's fine.
                 discoveries.insert(property.name, fingerprint_path.clone());
             }
+        }
+        if let Some(visitor) = terminal_visitor {
+            visitor.visit(
+                model,
+                Path::from_fingerprints(model, VecDeque::from(fingerprint_path.clone())),
+            );
         }
     }
 }

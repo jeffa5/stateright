@@ -71,6 +71,7 @@ pub struct CheckerBuilder<M: Model> {
     target_max_depth: Option<NonZeroUsize>,
     thread_count: usize,
     visitor: Option<Box<dyn CheckerVisitor<M> + Send + Sync>>,
+    terminal_visitor: Option<Box<dyn CheckerVisitor<M> + Send + Sync>>,
     finish_when: HasDiscoveries,
     timeout: Option<Duration>,
 }
@@ -83,6 +84,7 @@ impl<M: Model> CheckerBuilder<M> {
             symmetry: None,
             thread_count: 1,
             visitor: None,
+            terminal_visitor: None,
             finish_when: HasDiscoveries::All,
             timeout: None,
         }
@@ -278,6 +280,15 @@ impl<M: Model> CheckerBuilder<M> {
             ..self
         }
     }
+
+    /// Indicates a function to be run on terminal states.
+    pub fn terminal_visitor(self, visitor: impl CheckerVisitor<M> + Send + Sync + 'static) -> Self {
+        Self {
+            terminal_visitor: Some(Box::new(visitor)),
+            ..self
+        }
+    }
+
 
     /// Set the timeout to limit the checker execution to.
     pub fn timeout(self, duration: Duration) -> Self {
