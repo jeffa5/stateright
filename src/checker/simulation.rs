@@ -162,6 +162,7 @@ where
                                 break;
                             }
 
+                            log::trace!("{}: Checking trace from initial with seed={}", t, seed);
                             Self::check_trace_from_initial::<C>(
                                 &model,
                                 seed,
@@ -175,6 +176,7 @@ where
                                 &max_depth,
                                 symmetry,
                             );
+                            log::trace!("{}: Finished checking trace from initial with seed={}", t, seed);
 
                             // Check whether we have found everything.
                             // All threads should reach this check and have the same result,
