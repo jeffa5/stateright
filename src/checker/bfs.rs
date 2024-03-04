@@ -2,7 +2,10 @@
 
 use crate::checker::{Checker, EventuallyBits, Expectation, Path};
 use crate::job_market::JobBroker;
-use crate::{fingerprint, CheckerBuilder, CheckerVisitor, Fingerprint, Model, Property};
+use crate::{
+    fingerprint, CheckerBuilder, CheckerTerminalVisitor, CheckerVisitor, Fingerprint, Model,
+    Property,
+};
 use dashmap::mapref::entry::Entry;
 use dashmap::DashMap;
 use nohash_hasher::NoHashHasher;
@@ -194,7 +197,7 @@ where
         properties: &[Property<M>],
         discoveries: &DashMap<&'static str, Fingerprint>,
         visitor: &Option<Box<dyn CheckerVisitor<M> + Send + Sync>>,
-        terminal_visitor: &Option<Box<dyn CheckerVisitor<M> + Send + Sync>>,
+        terminal_visitor: &Option<Box<dyn CheckerTerminalVisitor<M> + Send + Sync>>,
         mut max_count: usize,
         target_max_depth: Option<NonZeroUsize>,
         global_max_depth: &AtomicUsize,
@@ -228,7 +231,7 @@ where
                 if max_depth >= target_max_depth {
                     log::trace!("Skipping state as past max depth {}", max_depth);
                     if let Some(visitor) = terminal_visitor {
-                        visitor.visit(model, reconstruct_path(model, generated, state_fp));
+                        visitor.visit(model, &reconstruct_fingerprints(generated, state_fp));
                     }
                     continue;
                 }
@@ -342,7 +345,7 @@ where
                     }
                 }
                 if let Some(visitor) = terminal_visitor {
-                    visitor.visit(model, reconstruct_path(model, generated, state_fp));
+                    visitor.visit(model, &reconstruct_fingerprints(generated, state_fp));
                 }
             }
         }
@@ -400,26 +403,35 @@ where
     M: Model,
     M::State: Hash,
 {
+    let fingerprints = reconstruct_fingerprints(generated, fp);
+    Path::from_fingerprints(model, fingerprints.into())
+}
+
+fn reconstruct_fingerprints(
+    generated: &DashMap<Fingerprint, Option<Fingerprint>, BuildHasherDefault<NoHashHasher<u64>>>,
+    fp: Fingerprint,
+) -> Vec<Fingerprint> {
     // First build a stack of digests representing the path (with the init digest at top of
     // stack). Then unwind the stack of digests into a vector of states. The TLC model checker
     // uses a similar technique, which is documented in the paper "Model Checking TLA+
     // Specifications" by Yu, Manolios, and Lamport.
 
-    let mut fingerprints = VecDeque::new();
+    let mut fingerprints = Vec::new();
     let mut next_fp = fp;
     while let Some(source) = generated.get(&next_fp) {
         match *source {
             Some(prev_fingerprint) => {
-                fingerprints.push_front(next_fp);
+                fingerprints.push(next_fp);
                 next_fp = prev_fingerprint;
             }
             None => {
-                fingerprints.push_front(next_fp);
+                fingerprints.push(next_fp);
                 break;
             }
         }
     }
-    Path::from_fingerprints(model, fingerprints)
+    fingerprints.reverse();
+    fingerprints
 }
 
 #[cfg(test)]

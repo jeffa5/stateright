@@ -1,7 +1,10 @@
 //! Private module for selective re-export.
 
 use crate::checker::{Checker, Expectation, Path};
-use crate::{fingerprint, CheckerBuilder, CheckerVisitor, Fingerprint, Model, Property};
+use crate::{
+    fingerprint, CheckerBuilder, CheckerTerminalVisitor, CheckerVisitor, Fingerprint, Model,
+    Property,
+};
 use dashmap::DashMap;
 use rand::rngs::StdRng;
 use rand::Rng;
@@ -176,7 +179,11 @@ where
                                 &max_depth,
                                 symmetry,
                             );
-                            log::trace!("{}: Finished checking trace from initial with seed={}", t, seed);
+                            log::trace!(
+                                "{}: Finished checking trace from initial with seed={}",
+                                t,
+                                seed
+                            );
 
                             // Check whether we have found everything.
                             // All threads should reach this check and have the same result,
@@ -225,7 +232,7 @@ where
         properties: &[Property<M>],
         discoveries: &DashMap<&'static str, Vec<Fingerprint>>,
         visitor: &Option<Box<dyn CheckerVisitor<M> + Send + Sync>>,
-        terminal_visitor: &Option<Box<dyn CheckerVisitor<M> + Send + Sync>>,
+        terminal_visitor: &Option<Box<dyn CheckerTerminalVisitor<M> + Send + Sync>>,
         target_max_depth: Option<NonZeroUsize>,
         global_max_depth: &AtomicUsize,
         symmetry: Option<fn(&M::State) -> M::State>,
@@ -406,10 +413,7 @@ where
         }
         // always run the terminal visitor in simulation mode to get a distribution of the lengths
         if let Some(visitor) = terminal_visitor {
-            visitor.visit(
-                model,
-                Path::from_fingerprints(model, VecDeque::from(fingerprint_path.clone())),
-            );
+            visitor.visit(model, &fingerprint_path);
         }
     }
 }

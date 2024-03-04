@@ -1,4 +1,4 @@
-use crate::{Model, Path};
+use crate::{Fingerprint, Model, Path};
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::sync::{Arc, Mutex};
@@ -28,6 +28,12 @@ where
     fn visit(&self, _: &M, path: Path<M::State, M::Action>) {
         self(path)
     }
+}
+
+/// Visit the end of a path.
+pub trait CheckerTerminalVisitor<M: Model> {
+    /// The method to apply to every [`Path`].
+    fn visit(&self, model: &M, path: &[Fingerprint]);
 }
 
 /// A [`CheckerVisitor`] that records paths visited by the model checker.

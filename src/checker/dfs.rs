@@ -2,7 +2,10 @@
 
 use crate::checker::{Checker, EventuallyBits, Expectation, Path};
 use crate::job_market::JobBroker;
-use crate::{fingerprint, CheckerBuilder, CheckerVisitor, Fingerprint, Model, Property};
+use crate::{
+    fingerprint, CheckerBuilder, CheckerTerminalVisitor, CheckerVisitor, Fingerprint, Model,
+    Property,
+};
 use dashmap::{DashMap, DashSet};
 use nohash_hasher::NoHashHasher;
 use std::collections::{HashMap, VecDeque};
@@ -195,7 +198,7 @@ where
         properties: &[Property<M>],
         discoveries: &DashMap<&'static str, Vec<Fingerprint>>,
         visitor: &Option<Box<dyn CheckerVisitor<M> + Send + Sync>>,
-        terminal_visitor: &Option<Box<dyn CheckerVisitor<M> + Send + Sync>>,
+        terminal_visitor: &Option<Box<dyn CheckerTerminalVisitor<M> + Send + Sync>>,
         mut max_count: usize,
         target_max_depth: Option<NonZeroUsize>,
         global_max_depth: &AtomicUsize,
@@ -230,10 +233,7 @@ where
                 if max_depth >= target_max_depth {
                     log::trace!("Skipping state as past max depth {}", max_depth);
                     if let Some(visitor) = terminal_visitor {
-                        visitor.visit(
-                            model,
-                            Path::from_fingerprints(model, VecDeque::from(fingerprints.clone())),
-                        );
+                        visitor.visit(model, &fingerprints);
                     }
                     continue;
                 }
@@ -369,10 +369,7 @@ where
                     }
                 }
                 if let Some(visitor) = terminal_visitor {
-                    visitor.visit(
-                        model,
-                        Path::from_fingerprints(model, VecDeque::from(fingerprints.clone())),
-                    );
+                    visitor.visit(model, &fingerprints);
                 }
             }
         }
