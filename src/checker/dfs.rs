@@ -229,6 +229,12 @@ where
             if let Some(target_max_depth) = target_max_depth {
                 if max_depth >= target_max_depth {
                     log::trace!("Skipping state as past max depth {}", max_depth);
+                    if let Some(visitor) = terminal_visitor {
+                        visitor.visit(
+                            model,
+                            Path::from_fingerprints(model, VecDeque::from(fingerprints.clone())),
+                        );
+                    }
                     continue;
                 }
             }
