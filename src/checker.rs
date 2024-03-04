@@ -282,6 +282,8 @@ impl<M: Model> CheckerBuilder<M> {
     }
 
     /// Indicates a function to be run on terminal states.
+    ///
+    /// Also run when a checker reaches the target depth limit for a path.
     pub fn terminal_visitor(self, visitor: impl CheckerVisitor<M> + Send + Sync + 'static) -> Self {
         Self {
             terminal_visitor: Some(Box::new(visitor)),
