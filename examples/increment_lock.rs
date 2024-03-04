@@ -139,7 +139,7 @@ fn main() -> Result<(), pico_args::Error> {
             let thread_count = args.opt_free_from_str()?.unwrap_or(3);
             let address = args
                 .opt_free_from_str()?
-                .unwrap_or("localhost:3000".to_string());
+                .unwrap_or_else(|| "localhost:3000".to_string());
             println!(
                 "Exploring the state space of increment with {} threads on {}.",
                 thread_count, address

@@ -231,7 +231,7 @@ fn main() -> Result<(), pico_args::Error> {
             let rm_count = args.opt_free_from_str()?.unwrap_or(2);
             let address = args
                 .opt_free_from_str()?
-                .unwrap_or("localhost:3000".to_string());
+                .unwrap_or_else(|| "localhost:3000".to_string());
             println!(
                 "Exploring state space for two phase commit with {} resource managers on {}.",
                 rm_count, address

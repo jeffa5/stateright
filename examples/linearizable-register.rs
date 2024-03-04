@@ -325,7 +325,7 @@ fn main() -> Result<(), pico_args::Error> {
             let client_count = args.opt_free_from_str()?.unwrap_or(2);
             let network = args
                 .opt_free_from_str()?
-                .unwrap_or(Network::new_unordered_nonduplicating([]));
+                .unwrap_or_else(|| Network::new_unordered_nonduplicating([]));
             println!(
                 "Model checking a linearizable register with {} clients.",
                 client_count
@@ -345,10 +345,10 @@ fn main() -> Result<(), pico_args::Error> {
             let client_count = args.opt_free_from_str()?.unwrap_or(2);
             let address = args
                 .opt_free_from_str()?
-                .unwrap_or("localhost:3000".to_string());
+                .unwrap_or_else(|| "localhost:3000".to_string());
             let network = args
                 .opt_free_from_str()?
-                .unwrap_or(Network::new_unordered_nonduplicating([]));
+                .unwrap_or_else(|| Network::new_unordered_nonduplicating([]));
             println!(
                 "Exploring state space for linearizable register with {} clients on {}.",
                 client_count, address

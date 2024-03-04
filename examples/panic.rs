@@ -19,7 +19,7 @@ impl Model for Adder {
         actions.push(5);
         let thread_name = std::thread::current().name().unwrap().to_owned();
         // dbg!(&thread_name);
-        if thread_name.contains("2") {
+        if thread_name.contains('2') {
             // if *state == 5000 {
             panic!()
         }

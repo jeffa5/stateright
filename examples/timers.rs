@@ -120,7 +120,7 @@ fn main() -> Result<(), pico_args::Error> {
         Some("check") => {
             let network = args
                 .opt_free_from_str()?
-                .unwrap_or(Network::new_unordered_nonduplicating([]));
+                .unwrap_or_else(|| Network::new_unordered_nonduplicating([]));
             println!("Model checking Pingers");
             PingerModelCfg {
                 server_count: 3,
@@ -135,10 +135,10 @@ fn main() -> Result<(), pico_args::Error> {
         Some("explore") => {
             let address = args
                 .opt_free_from_str()?
-                .unwrap_or("localhost:3000".to_string());
+                .unwrap_or_else(|| "localhost:3000".to_string());
             let network = args
                 .opt_free_from_str()?
-                .unwrap_or(Network::new_unordered_nonduplicating([]));
+                .unwrap_or_else(|| Network::new_unordered_nonduplicating([]));
             println!("Exploring state space for Pingers on {}.", address);
             PingerModelCfg {
                 server_count: 3,

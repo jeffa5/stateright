@@ -462,7 +462,7 @@ where
                     format!(
                         "{}",
                         ActorStep {
-                            last_state: &**Cow::Borrowed(last_actor_state),
+                            last_state: &**last_actor_state,
                             next_state: None,
                             out: Out::new() as Out<A>,
                         }
@@ -840,7 +840,6 @@ mod test {
         );
         assert_eq!(
             model
-                .clone()
                 .init_network(Network::new_ordered([]))
                 .checker()
                 .spawn_bfs()

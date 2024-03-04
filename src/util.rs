@@ -164,7 +164,6 @@ fn calculate_hash<T: Hash>(t: &T) -> u64 {
     s.finish()
 }
 
-#[allow(clippy::non_canonical_partial_ord_impl)]
 impl<V: Hash + Eq, S: BuildHasher> PartialOrd for HashableHashSet<V, S> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         calculate_hash(self).partial_cmp(&calculate_hash(other))
@@ -329,7 +328,6 @@ impl<K, V, S> DerefMut for HashableHashMap<K, V, S> {
 
 impl<K: Eq + Hash, V: Eq, S: BuildHasher> Eq for HashableHashMap<K, V, S> {}
 
-#[allow(clippy::non_canonical_partial_ord_impl)]
 impl<K: Eq + Hash, V: Hash + Eq, S: BuildHasher> PartialOrd for HashableHashMap<K, V, S> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         calculate_hash(self).partial_cmp(&calculate_hash(other))
