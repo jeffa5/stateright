@@ -11,7 +11,7 @@ impl Model for Adder {
         vec![0]
     }
 
-    fn actions(&self, state: &Self::State, actions: &mut Vec<Self::Action>) {
+    fn actions(&self, _state: &Self::State, actions: &mut Vec<Self::Action>) {
         actions.push(1);
         actions.push(2);
         actions.push(3);
