@@ -256,6 +256,7 @@ where
             }
             ebits
         };
+        let mut reached_max_depth = false;
         'outer: loop {
             if fingerprint_path.len() > current_max_depth {
                 let _ = global_max_depth.compare_exchange(
@@ -272,9 +273,9 @@ where
                         "Skipping exploring more states as past max depth {}",
                         fingerprint_path.len()
                     );
-                    // return not break here as we do not know if this is terminal.
                     log::trace!("Reached max depth");
-                    return;
+                    reached_max_depth = true;
+                    break;
                 }
             }
 
@@ -392,13 +393,16 @@ where
                 };
             }
         }
-        // check the eventually properties
-        for (i, property) in properties.iter().enumerate() {
-            if ebits.contains(i) {
-                // Races other threads, but that's fine.
-                discoveries.insert(property.name, fingerprint_path.clone());
+        if !reached_max_depth {
+            // check the eventually properties
+            for (i, property) in properties.iter().enumerate() {
+                if ebits.contains(i) {
+                    // Races other threads, but that's fine.
+                    discoveries.insert(property.name, fingerprint_path.clone());
+                }
             }
         }
+        // always run the terminal visitor in simulation mode to get a distribution of the lengths
         if let Some(visitor) = terminal_visitor {
             visitor.visit(
                 model,
