@@ -381,7 +381,7 @@ where
         }
     }
 
-    fn format_action(&self, action: &Self::Action) -> String {
+    fn format_action(&self, _last_state: &Self::State, action: &Self::Action) -> String {
         if let ActorModelAction::Deliver { src, dst, msg } = action {
             format!("{:?} → {:?} → {:?}", src, msg, dst)
         } else {

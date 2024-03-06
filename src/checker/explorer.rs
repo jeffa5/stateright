@@ -292,7 +292,7 @@ where
                     model.as_svg(Path::from_fingerprints::<M>(model, fingerprints))
                 };
                 results.push(StateView {
-                    action: Some(model.format_action(&action)),
+                    action: Some(model.format_action(&last_state, &action)),
                     outcome,
                     state: Some(state),
                     properties: get_properties(checker),
@@ -301,7 +301,7 @@ where
             } else {
                 // "Action ignored" case is still returned, as it may be useful for debugging.
                 results.push(StateView {
-                    action: Some(model.format_action(&action)),
+                    action: Some(model.format_action(&last_state, &action)),
                     outcome: None,
                     state: None,
                     properties: get_properties(checker),

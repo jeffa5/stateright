@@ -173,7 +173,7 @@ pub trait Model: Sized {
     fn next_state(&self, last_state: &Self::State, action: Self::Action) -> Option<Self::State>;
 
     /// Converts an action of this model to a more intuitive representation (e.g. for Explorer).
-    fn format_action(&self, action: &Self::Action) -> String
+    fn format_action(&self, _last_state: &Self::State, action: &Self::Action) -> String
     where
         Self::Action: Debug,
     {
