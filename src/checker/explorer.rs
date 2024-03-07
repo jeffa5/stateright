@@ -2,7 +2,7 @@ use crate::*;
 use parking_lot::RwLock;
 use serde::ser::{SerializeStruct, Serializer};
 use serde::Serialize;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::net::ToSocketAddrs;
 use std::sync::Arc;
 use std::thread::{sleep, spawn};
@@ -83,7 +83,7 @@ pub(crate) fn serve<M>(
 where
     M: 'static + Model + Send + Sync,
     M::Action: Debug + Send + Sync,
-    M::State: Debug + Hash + Send + Sync,
+    M::State: Debug + Hash + Send + Sync + Clone,
 {
     let snapshot = Arc::new(RwLock::new(Snapshot(true, None)));
     let snapshot_for_visitor = Arc::clone(&snapshot);
@@ -106,7 +106,7 @@ fn serve_checker<M, C>(
 where
     M: 'static + Model + Send + Sync,
     M::Action: Debug + Send + Sync,
-    M::State: Debug + Hash + Send + Sync,
+    M::State: Debug + Hash + Send + Sync + Clone,
     C: 'static + Checker<M> + Send + Sync,
 {
     let checker = Arc::new(checker);
@@ -129,37 +129,40 @@ where
     }
 
     let data = Arc::new((snapshot, Arc::clone(&checker)));
-    let web_handle = std::thread::spawn(move || loop {
-        let rq = server.recv().unwrap();
-        let response = match (rq.method(), rq.url()) {
-            (Method::Get, "/") => get_ui_file!("index.htm"),
-            (Method::Get, "/app.css") => get_ui_file!("app.css"),
-            (Method::Get, "/app.js") => get_ui_file!("app.js"),
-            (Method::Get, "/knockout-3.5.0.js") => get_ui_file!("knockout-3.5.0.js"),
-            (Method::Get, "/.status") => {
-                let view = status(Arc::clone(&data));
-                let status_json = serde_json::to_vec(&view).unwrap();
-                Response::from_data(status_json).boxed()
-            }
-            (Method::Post, "/.runtocompletion") => run_to_completion(Arc::clone(&data)),
-            (Method::Get, url) => {
-                if let Some(fingerprints) = url.strip_prefix("/.states") {
-                    match states(fingerprints, Arc::clone(&data)) {
-                        Ok(states) => {
-                            let states_json = serde_json::to_vec(&states).unwrap();
-                            Response::from_data(states_json).boxed()
-                        }
-                        Err(err) => Response::from_string(err)
-                            .with_status_code(StatusCode(404))
-                            .boxed(),
-                    }
-                } else {
-                    Response::empty(StatusCode(404)).boxed()
+    let web_handle = std::thread::spawn(move || {
+        let mut state_cache = StateCache::default();
+        loop {
+            let rq = server.recv().unwrap();
+            let response = match (rq.method(), rq.url()) {
+                (Method::Get, "/") => get_ui_file!("index.htm"),
+                (Method::Get, "/app.css") => get_ui_file!("app.css"),
+                (Method::Get, "/app.js") => get_ui_file!("app.js"),
+                (Method::Get, "/knockout-3.5.0.js") => get_ui_file!("knockout-3.5.0.js"),
+                (Method::Get, "/.status") => {
+                    let view = status(Arc::clone(&data));
+                    let status_json = serde_json::to_vec(&view).unwrap();
+                    Response::from_data(status_json).boxed()
                 }
-            }
-            _ => Response::empty(StatusCode(404)).boxed(),
-        };
-        rq.respond(response).unwrap();
+                (Method::Post, "/.runtocompletion") => run_to_completion(Arc::clone(&data)),
+                (Method::Get, url) => {
+                    if let Some(fingerprints) = url.strip_prefix("/.states") {
+                        match states(fingerprints, Arc::clone(&data), &mut state_cache) {
+                            Ok(states) => {
+                                let states_json = serde_json::to_vec(&states).unwrap();
+                                Response::from_data(states_json).boxed()
+                            }
+                            Err(err) => Response::from_string(err)
+                                .with_status_code(StatusCode(404))
+                                .boxed(),
+                        }
+                    } else {
+                        Response::empty(StatusCode(404)).boxed()
+                    }
+                }
+                _ => Response::empty(StatusCode(404)).boxed(),
+            };
+            rq.respond(response).unwrap();
+        }
     });
     web_handle.join().unwrap();
 
@@ -221,11 +224,15 @@ where
         .collect()
 }
 
-fn states<M, C>(path: &str, data: Data<M::Action, C>) -> Result<Vec<StateView<M::State>>, String>
+fn states<M, C>(
+    path: &str,
+    data: Data<M::Action, C>,
+    state_cache: &mut StateCache<M>,
+) -> Result<Vec<StateView<M::State>>, String>
 where
     M: Model,
     M::Action: Debug,
-    M::State: Debug + Hash,
+    M::State: Debug + Hash + Clone,
     C: Checker<M>,
 {
     let checker = &data.1;
@@ -266,7 +273,7 @@ where
                 svg,
             });
         }
-    } else if let Some(last_state) = Path::final_state::<M>(model, fingerprints.clone()) {
+    } else if let Some(last_state) = state_cache.final_state(model, fingerprints.clone()) {
         // Must generate the actions three times because they are consumed by `next_state`
         // and `display_outcome`.
         let mut actions1 = Vec::new();
@@ -317,6 +324,48 @@ where
     }
 
     Ok(results)
+}
+
+pub struct StateCache<M: Model> {
+    cache: HashMap<Fingerprint, M::State>,
+}
+
+impl<M: Model> Default for StateCache<M> {
+    fn default() -> Self {
+        Self {
+            cache: Default::default(),
+        }
+    }
+}
+
+impl<M: Model> StateCache<M>
+where
+    M::State: Hash + Clone,
+{
+    pub fn final_state(
+        &mut self,
+        model: &M,
+        fingerprints: VecDeque<Fingerprint>,
+    ) -> Option<M::State> {
+        let first_fingerprint = fingerprints.get(0)?;
+        let mut state = model
+            .init_states()
+            .into_iter()
+            .find(|s| &fingerprint(&s) == first_fingerprint)?;
+        for f in fingerprints {
+            if let Some(s) = self.cache.get(&f) {
+                state = s.clone();
+            } else {
+                let states = model.next_states(&state);
+                if let Some(ns) = states.into_iter().find(|s| fingerprint(&s) == f) {
+                    self.cache.insert(f, ns);
+                } else {
+                    break;
+                }
+            }
+        }
+        Some(state)
+    }
 }
 
 #[cfg(test)]
@@ -572,12 +621,13 @@ mod test {
     where
         M: Model,
         M::Action: Debug,
-        M::State: Debug + Hash,
+        M::State: Debug + Hash + Clone,
         C: Checker<M>,
     {
         let snapshot = Arc::new(RwLock::new(Snapshot(true, None)));
         let data = Arc::new((snapshot, checker));
-        states(path_name, data)
+        let mut cache = StateCache::default();
+        states(path_name, data, &mut cache)
     }
 
     fn get_status<M, C>(checker: Arc<C>, snapshot: Arc<RwLock<Snapshot<M::Action>>>) -> StatusView

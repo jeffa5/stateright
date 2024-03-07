@@ -130,40 +130,6 @@ Available next fingerprints (none of which match): {:?}"#,
         Some(Path(output))
     }
 
-    /// Determines the final state associated with a particular fingerprint path.
-    pub(crate) fn final_state<M>(
-        model: &M,
-        mut fingerprints: VecDeque<Fingerprint>,
-    ) -> Option<M::State>
-    where
-        M: Model<State = State, Action = Action>,
-        M::State: Hash,
-    {
-        let init_print = match fingerprints.pop_front() {
-            Some(init_print) => init_print,
-            None => return None,
-        };
-        let mut matching_state = match model
-            .init_states()
-            .into_iter()
-            .find(|s| fingerprint(&s) == init_print)
-        {
-            Some(matching_state) => matching_state,
-            None => return None,
-        };
-        while let Some(next_print) = fingerprints.pop_front() {
-            matching_state = match model
-                .next_states(&matching_state)
-                .into_iter()
-                .find(|s| fingerprint(&s) == next_print)
-            {
-                Some(matching_state) => matching_state,
-                None => return None,
-            };
-        }
-        Some(matching_state)
-    }
-
     /// Extracts the last state.
     pub fn last_state(&self) -> &State {
         &self.0.last().unwrap().0

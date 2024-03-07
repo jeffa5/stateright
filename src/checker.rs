@@ -148,7 +148,7 @@ impl<M: Model> CheckerBuilder<M> {
     where
         M: 'static + Model + Send + Sync,
         M::Action: Debug + Send + Sync,
-        M::State: Debug + Hash + Send + Sync,
+        M::State: Debug + Hash + Send + Sync + Clone,
     {
         explorer::serve(self, addresses)
     }
@@ -721,6 +721,7 @@ mod test_eventually_property_checker {
 #[cfg(test)]
 mod test_path {
     use super::*;
+    use crate::checker::explorer::StateCache;
     use crate::fingerprint;
     use crate::test_util::linear_equation_solver::LinearEquation;
     use std::collections::VecDeque;
@@ -737,9 +738,10 @@ mod test_path {
         ]);
         let path = Path::from_fingerprints(&model, fingerprints.clone());
         assert_eq!(path.last_state(), &(2, 1));
+        let mut state_cache = StateCache::default();
         assert_eq!(
             path.last_state(),
-            &Path::final_state(&model, fingerprints).unwrap()
+            &state_cache.final_state(&model, fingerprints).unwrap()
         );
     }
 }
