@@ -147,7 +147,7 @@ impl<M: Model> CheckerBuilder<M> {
     pub fn serve(self, addresses: impl std::net::ToSocketAddrs) -> std::sync::Arc<impl Checker<M>>
     where
         M: 'static + Model + Send + Sync,
-        M::Action: Debug + Send + Sync,
+        M::Action: Debug + Send + Sync + Clone,
         M::State: Debug + Hash + Send + Sync + Clone,
     {
         explorer::serve(self, addresses)

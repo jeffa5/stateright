@@ -82,7 +82,7 @@ pub(crate) fn serve<M>(
 ) -> Arc<impl Checker<M>>
 where
     M: 'static + Model + Send + Sync,
-    M::Action: Debug + Send + Sync,
+    M::Action: Debug + Send + Sync + Clone,
     M::State: Debug + Hash + Send + Sync + Clone,
 {
     let snapshot = Arc::new(RwLock::new(Snapshot(true, None)));
@@ -105,7 +105,7 @@ fn serve_checker<M, C>(
 ) -> Arc<impl Checker<M>>
 where
     M: 'static + Model + Send + Sync,
-    M::Action: Debug + Send + Sync,
+    M::Action: Debug + Send + Sync + Clone,
     M::State: Debug + Hash + Send + Sync + Clone,
     C: 'static + Checker<M> + Send + Sync,
 {
@@ -231,7 +231,7 @@ fn states<M, C>(
 ) -> Result<Vec<StateView<M::State>>, String>
 where
     M: Model,
-    M::Action: Debug,
+    M::Action: Debug + Clone,
     M::State: Debug + Hash + Clone,
     C: Checker<M>,
 {
@@ -263,7 +263,7 @@ where
             let svg = {
                 let mut fingerprints: VecDeque<_> = fingerprints.clone().into_iter().collect();
                 fingerprints.push_back(fingerprint);
-                model.as_svg(Path::from_fingerprints::<M>(model, fingerprints))
+                model.as_svg(state_cache.build_path(model, fingerprints))
             };
             results.push(StateView {
                 action: None,
@@ -294,9 +294,9 @@ where
                 let fingerprint = fingerprint(&state);
                 checker.check_fingerprint(fingerprint);
                 let svg = {
-                    let mut fingerprints: VecDeque<_> = fingerprints.clone().into_iter().collect();
+                    let mut fingerprints = fingerprints.clone();
                     fingerprints.push_back(fingerprint);
-                    model.as_svg(Path::from_fingerprints::<M>(model, fingerprints))
+                    model.as_svg(state_cache.build_path(model, fingerprints))
                 };
                 results.push(StateView {
                     action: Some(model.format_action(&last_state, &action)),
@@ -327,7 +327,7 @@ where
 }
 
 pub struct StateCache<M: Model> {
-    cache: HashMap<Fingerprint, M::State>,
+    cache: HashMap<Fingerprint, (Option<M::Action>, M::State)>,
 }
 
 impl<M: Model> Default for StateCache<M> {
@@ -341,30 +341,85 @@ impl<M: Model> Default for StateCache<M> {
 impl<M: Model> StateCache<M>
 where
     M::State: Hash + Clone,
+    M::Action: Clone,
 {
     pub fn final_state(
         &mut self,
         model: &M,
-        fingerprints: VecDeque<Fingerprint>,
+        mut fingerprints: VecDeque<Fingerprint>,
     ) -> Option<M::State> {
-        let first_fingerprint = fingerprints.get(0)?;
+        let first_fingerprint = fingerprints.pop_front()?;
         let mut state = model
             .init_states()
             .into_iter()
-            .find(|s| &fingerprint(&s) == first_fingerprint)?;
+            .find(|s| fingerprint(&s) == first_fingerprint)?;
+        self.cache.insert(first_fingerprint, (None, state.clone()));
         for f in fingerprints {
-            if let Some(s) = self.cache.get(&f) {
+            if let Some((_, s)) = self.cache.get(&f) {
                 state = s.clone();
             } else {
-                let states = model.next_states(&state);
-                if let Some(ns) = states.into_iter().find(|s| fingerprint(&s) == f) {
-                    self.cache.insert(f, ns);
+                let states = model.next_steps(&state);
+                if let Some((a, ns)) = states.into_iter().find(|(_, s)| fingerprint(&s) == f) {
+                    self.cache.insert(f, (Some(a), ns.clone()));
+                    state = ns;
                 } else {
                     break;
                 }
             }
         }
         Some(state)
+    }
+
+    pub fn build_path(
+        &mut self,
+        model: &M,
+        mut fingerprints: VecDeque<Fingerprint>,
+    ) -> Path<M::State, M::Action> {
+        let mut path = Vec::new();
+        let first_fingerprint = fingerprints.pop_front().unwrap();
+        let mut state = model
+            .init_states()
+            .into_iter()
+            .find(|s| fingerprint(&s) == first_fingerprint)
+            .unwrap_or_else(|| {
+                panic!(
+                    r#"
+Unable to reconstruct a `Path` based on digests ("fingerprints") from states visited earlier. No
+init state has the expected fingerprint ({:?}). This usually happens when the return value of
+`Model::init_states` varies.
+
+The most obvious cause would be a model that operates directly upon untracked external state such
+as the file system, a thread local `RefCell`, or a source of randomness. Note that this is often
+inadvertent. For example, iterating over a `HashMap` or `HashableHashMap` does not always happen in
+the same order (depending on the random seed), which can lead to unexpected nondeterminism.
+
+Available init fingerprints (none of which match): {:?}"#,
+                    first_fingerprint,
+                    model
+                        .init_states()
+                        .into_iter()
+                        .map(|s| fingerprint(&s))
+                        .collect::<Vec<_>>()
+                );
+            });
+        self.cache.insert(first_fingerprint, (None, state.clone()));
+        for f in fingerprints {
+            if let Some((a, s)) = self.cache.get(&f) {
+                path.push((state, a.clone()));
+                state = s.clone();
+            } else {
+                let steps = model.next_steps(&state);
+                if let Some((action, ns)) = steps.into_iter().find(|(_, s)| fingerprint(&s) == f) {
+                    self.cache.insert(f, (Some(action.clone()), ns.clone()));
+                    path.push((state, Some(action)));
+                    state = ns;
+                } else {
+                    break;
+                }
+            }
+        }
+        path.push((state, None));
+        Path(path)
     }
 }
 
@@ -620,7 +675,7 @@ mod test {
     ) -> Result<Vec<StateView<M::State>>, String>
     where
         M: Model,
-        M::Action: Debug,
+        M::Action: Debug + Clone,
         M::State: Debug + Hash + Clone,
         C: Checker<M>,
     {
